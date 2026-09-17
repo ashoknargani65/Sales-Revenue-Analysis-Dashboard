@@ -1,0 +1,151 @@
+// ============================================================
+// Insights.jsx — Automated business insights page
+// ============================================================
+
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  TrendingUp, MapPin, Package, BarChart2,
+  PieChart, ShoppingCart, Lightbulb, RefreshCw,
+} from 'lucide-react';
+import { getInsights } from '../services/api';
+import { MOCK_INSIGHTS } from '../utils/mockData';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
+import EmptyState from '../components/EmptyState';
+
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+const ICON_MAP = {
+  TrendingUp,
+  MapPin,
+  Package,
+  BarChart2,
+  PieChart,
+  ShoppingCart,
+  Lightbulb,
+};
+
+const COLOR_MAP = {
+  indigo: { bg: 'rgba(99,102,241,0.15)', accent: '#6366f1', border: 'rgba(99,102,241,0.3)' },
+  cyan: { bg: 'rgba(6,182,212,0.12)', accent: '#06b6d4', border: 'rgba(6,182,212,0.3)' },
+  purple: { bg: 'rgba(139,92,246,0.15)', accent: '#8b5cf6', border: 'rgba(139,92,246,0.3)' },
+  emerald: { bg: 'rgba(16,185,129,0.12)', accent: '#10b981', border: 'rgba(16,185,129,0.3)' },
+  amber: { bg: 'rgba(245,158,11,0.12)', accent: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+  rose: { bg: 'rgba(239,68,68,0.12)', accent: '#ef4444', border: 'rgba(239,68,68,0.3)' },
+};
+
+const InsightCard = ({ title, icon, color, metric, description, change, positive }) => {
+  const Icon = ICON_MAP[icon] || Lightbulb;
+  const colors = COLOR_MAP[color] || COLOR_MAP.indigo;
+
+  return (
+    <article
+      className="insight-card"
+      style={{ background: colors.bg, borderColor: colors.border }}
+    >
+      <div className="insight-card__header">
+        <div className="insight-card__icon" style={{ background: colors.accent + '22', color: colors.accent }}>
+          <Icon size={22} aria-hidden="true" />
+        </div>
+        <div>
+          <p className="insight-card__label">{title}</p>
+          <p className="insight-card__metric" style={{ color: colors.accent }}>{metric}</p>
+        </div>
+        {change && (
+          <div className={`insight-card__change ${positive ? 'insight-card__change--up' : 'insight-card__change--down'}`}>
+            <TrendingUp size={12} />
+            <span>{change}</span>
+          </div>
+        )}
+      </div>
+      <p className="insight-card__desc">{description}</p>
+    </article>
+  );
+};
+
+const Insights = () => {
+  const [insights, setInsights] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (USE_MOCK) {
+        await new Promise((r) => setTimeout(r, 700));
+        setInsights(MOCK_INSIGHTS);
+      } else {
+        const data = await getInsights();
+        setInsights(data || []);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load insights.');
+      if (USE_MOCK) setInsights(MOCK_INSIGHTS);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener('dashboard-refresh', handler);
+    return () => window.removeEventListener('dashboard-refresh', handler);
+  }, [load]);
+
+  return (
+    <div className="page page--insights">
+      {/* Hero */}
+      <div className="insights-hero">
+        <div className="insights-hero__badge">
+          <Lightbulb size={15} />
+          <span>AI-Powered</span>
+        </div>
+        <h2 className="insights-hero__title">Business Insights</h2>
+        <p className="insights-hero__desc">
+          Automatically generated insights based on the uploaded sales data. These observations are
+          derived from real-time analysis of your revenue, profit, and order patterns.
+        </p>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'spin' : ''} />
+          Refresh Insights
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="insights-state">
+          <LoadingSpinner size="lg" label="Generating insights…" />
+        </div>
+      ) : error ? (
+        <ErrorMessage message={error} onRetry={load} />
+      ) : insights.length === 0 ? (
+        <EmptyState
+          title="No insights available."
+          description="Upload sales data to generate automated business insights."
+        />
+      ) : (
+        <>
+          <p className="insights-count">{insights.length} insights generated from your data</p>
+          <div className="insights-grid">
+            {insights.map((insight) => (
+              <InsightCard key={insight.id} {...insight} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Disclaimer */}
+      <div className="insights-disclaimer">
+        <Lightbulb size={14} />
+        <p>
+          Insights are automatically generated by the analytics engine based on aggregated data patterns.
+          Always validate critical business decisions against raw data.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default Insights;
