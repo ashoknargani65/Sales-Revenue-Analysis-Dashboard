@@ -1,0 +1,11 @@
+.env
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.idea/
+.vscode/
+.DS_Store
+data/sample_sales_data.csv
+*.db
